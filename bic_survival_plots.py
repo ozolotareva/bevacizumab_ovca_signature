@@ -9,17 +9,31 @@ from lifelines.plotting import add_at_risk_counts
 from lifelines import KaplanMeierFitter, CoxPHFitter
 
 from statsmodels.stats.multitest import fdrcorrection
-
+sys.path.append("unpast/")
 from unpast.utils.method import cluster_samples, update_bicluster_data
 
 
 ### plotting KM for patients stratified by bicluster and treatment ###
 def plot_KM_predictive(bic_samples, annot, surv_results, bic_id, direction,
-                       surv_time = "_time", surv_event= "_event",
-                       cohort = "",add_at_risk_counts=False, 
+                       surv_time = "_time",
+                       surv_event= "_event",
+                       cohort = "",
+                       add_counts=False,
                        xlabel = "",
-                       label_pos =(0.05,0.1),add_subplot=False):
+                       figsize =(10,2.5),
+                       e = "expr.", # expression
+                       xlim = False,
+                       xticks=[12*x for x in range(0,9)],
+                       label_pos =(0.05,0.1),
+                       add_subplot=False):
+    
+    yticks = [0, 0.25,0.5,0.75, 1.0]
     sns.reset_defaults()
+    sns.set(font_scale= 0.75,
+            style='ticks',
+            rc={'axes.edgecolor': '.5',
+                'xtick.color': '.25',
+                'ytick.color': '.25'})
     
     i = bic_id
     res = surv_results.loc[i,:]
@@ -47,25 +61,39 @@ def plot_KM_predictive(bic_samples, annot, surv_results, bic_id, direction,
         bic, bg = bg, bic
         bic_text, bg_text = bg_text, bic_text
 
-    plt.figure(figsize=(10,2.5))
+    plt.figure(figsize=figsize)
     
     ax = plt.subplot(1,2,2)
     
     kmf_1 = KaplanMeierFitter()
     s1 = set(annot.loc[annot["bevacizumab"]==1,:].index.values).intersection(bic) 
-    kmf_1.fit(annot.loc[s1,surv_time], annot.loc[s1,surv_event], label='bevacizumab, n=%s'%len(s1)).plot_survival_function(ax=ax,color="red")
+    kmf_1.fit(annot.loc[s1,surv_time],
+              annot.loc[s1,surv_event],
+              label='bevacizumab, n=%s'%len(s1)
+             ).plot_survival_function(ax=ax,
+                                      color="red",
+                                      xticks=xticks,
+                                      yticks=yticks)
 
     kmf_2 = KaplanMeierFitter()
     s2 = set(annot.loc[annot["bevacizumab"]==0,:].index.values).intersection(bic) 
-    kmf_2.fit(annot.loc[s2,surv_time], annot.loc[s2,surv_event], label='standard, n=%s'%len(s2)).plot_survival_function(ax=ax,color="red", linestyle='dashed')
+    kmf_2.fit(annot.loc[s2,surv_time],
+              annot.loc[s2,surv_event],
+              label='standard, n=%s'%len(s2)
+             ).plot_survival_function(ax=ax,
+                                      color="red",
+                                      linestyle='dashed',
+                                      xticks=xticks,
+                                      yticks=yticks)
 
-    ax.set_title("%s: Bicluster %s, high expr."%(cohort, i))
+    ax.set_title("%s: Bicluster %s, high %s"%(cohort, i, e),fontsize=11)
     
     ax.set_xlabel(xlabel)
-    ax.text(label_pos[0],label_pos[1], bic_text)
+    ax.text(label_pos[0],label_pos[1], bic_text, fontsize=8)
     ax.set_ylim(0,1)
     ax.set_xlim(0,100)
-    if add_at_risk_counts:
+    ax.legend(loc=1, prop={'size': 8})
+    if add_counts:
         from lifelines.plotting import add_at_risk_counts
         add_at_risk_counts(kmf_1, kmf_2, ax=ax)
     
@@ -73,20 +101,34 @@ def plot_KM_predictive(bic_samples, annot, surv_results, bic_id, direction,
 
     kmf_3 = KaplanMeierFitter()
     s3 = set(annot.loc[annot["bevacizumab"]==1,:].index.values).intersection(bg) 
-    kmf_3.fit(annot.loc[s3,surv_time], annot.loc[s3,surv_event], label='bevacizumab, n=%s'%len(s3)).plot_survival_function(ax=ax, color="blue")
+    kmf_3.fit(annot.loc[s3,surv_time],
+              annot.loc[s3,surv_event],
+              label='bevacizumab, n=%s'%len(s3)
+             ).plot_survival_function(ax=ax,
+                                      color="blue",
+                                      xticks=xticks,
+                                      yticks=yticks)
 
     kmf_4 = KaplanMeierFitter()
     s4 = set(annot.loc[annot["bevacizumab"]==0,:].index.values).intersection(bg) 
-    kmf_4.fit(annot.loc[s4,surv_time], annot.loc[s4,surv_event], label='standard, n=%s'%len(s4)).plot_survival_function(ax=ax, color="blue", linestyle='dashed') 
+    kmf_4.fit(annot.loc[s4,surv_time],
+              annot.loc[s4,surv_event],
+              label='standard, n=%s'%len(s4)
+             ).plot_survival_function(ax=ax,
+                                      color="blue",
+                                      linestyle='dashed',
+                                      xticks=xticks,
+                                      yticks=yticks) 
     print(i,len(bg))
-    ax.set_title("%s: Bicluster %s, low expr."%(cohort, i))
+    ax.set_title("%s: Bicluster %s, low %s"%(cohort, i, e),fontsize=11)
     ax.set_xlabel(xlabel)
-    ax.text(label_pos[0],label_pos[1],bg_text)
+    ax.text(label_pos[0],label_pos[1],bg_text,fontsize=8)
     ax.set_ylim(0,1)
     ax.set_xlim(0,100)
-    
-    if add_at_risk_counts:
+    ax.legend(loc=1, prop={'size': 8})
+    if add_counts:
         tmp = add_at_risk_counts(kmf_3, kmf_4, ax=ax)
+        plt.tight_layout()
         
     if not add_subplot:
         plt.show()
@@ -99,17 +141,22 @@ def plot_KM_prognostic(biclusters,
                        surv_event='_event',
                        cohort = "cohort",
                        xlabel = "months",
+                       xticks=[12*x for x in range(0,9)],
                        add_counts=False,
                        label_pos =(2,0.05),
                        figsize=(5,2.5),
+                       linestyle='solid',
                        add_subplot=False):
-
-     
-    
+    yticks = [0, 0.25,0.5,0.75, 1.0]
     sns.reset_defaults()
+    sns.set(font_scale= 0.75,
+            style='ticks',
+            rc={'axes.edgecolor':'.5',
+                'xtick.color':'.25',
+                'ytick.color':'.25'}
+           )
 
     for i in biclusters.index.values:
-
         bic = set(biclusters.loc[i,"samples"]).intersection(set(annot.index.values))
         bg = set(annot.index.values).difference(bic)
         bic = sorted(bic)
@@ -128,32 +175,54 @@ def plot_KM_prognostic(biclusters,
         ci95 = surv_results.loc[i,["CI_l","CI_r"]]
         text = "p-val.=%.2e\nadj.p-val.=%.2e\nHR=%.2f(%.2f,%.2f)"%(pv,adjpv, hr, ci95[0], ci95[1])
         
-        plt.figure(figsize=figsize)
-        ax = plt.subplot(111)
-
-
+        #plt.figure(figsize=figsize)
+        #ax = plt.subplots(111)
+        fig, ax= plt.subplots(1, 1, figsize=figsize)
+        ax.set_xticks(xticks)
 
         kmf_1 = KaplanMeierFitter()
 
-        ax = kmf_1.fit(annot.loc[up,surv_time], annot.loc[up,surv_event], label='high (n=%s)'%len(up)).plot_survival_function(ax=ax, color="red")
+        ax = kmf_1.fit(annot.loc[up,surv_time],
+                       annot.loc[up,surv_event],
+                       label='high (n=%s)'%len(up)
+                      ).plot_survival_function(ax=ax, 
+                                               color="red",
+                                               linestyle=linestyle,
+                                               xticks =xticks,
+                                               yticks =yticks)
 
         kmf_2 = KaplanMeierFitter()
 
-        ax = kmf_2.fit(annot.loc[down,surv_time], annot.loc[down,surv_event],
-        label='low (n=%s)'%len(down)).plot_survival_function(ax=ax, color="blue") # linestyle='dashed'
+        ax = kmf_2.fit(annot.loc[down,surv_time], 
+                       annot.loc[down,surv_event],
+                       label='low (n=%s)'%len(down)
+                      ).plot_survival_function(ax=ax,
+                                               color="blue",
+                                               linestyle=linestyle,
+                                               xticks =xticks,
+                                               yticks =yticks) 
         
         if add_counts:
+            #from lifelines.plotting import add_at_risk_counts
             add_at_risk_counts(kmf_1, kmf_2, ax=ax)
+            ax.set_xlabel(ax.get_xlabel(),
+                          ha = "right",
+                          fontsize=9
+                         )
             plt.tight_layout()
-        ax.set_title("%s, %s (n=%s), Bicluster %s"%(cohort, treatment,len(up)+len(down) ,i))
-        #ax.get_legend().remove()
+        ax.set_title("%s, %s (n=%s), Bicluster %s"%(cohort, 
+                                                    treatment,
+                                                    len(up)+len(down),
+                                                    i)
+                    )
+        ax.legend(loc=1, prop={'size': 8})
         ax.set_xlabel(xlabel)
-        ax.text(label_pos[0],label_pos[1],text)
+        ax.text(label_pos[0],label_pos[1],text,fontsize=8)
         ax.set_ylim(0,1)
         ax.set_xlim(0,100)
+        
         if not add_subplot:
-            plt.show()
-            
+            plt.show()                   
             
 def plot_KM_four(bic_samples,
                  annot,
@@ -172,7 +241,6 @@ def plot_KM_four(bic_samples,
                  add_subplot=False,
                  ci_show=False
                 ):    
-    yticks = [0, 0.25,0.5,0.75, 1.0]
     
     i = bic_id
     if direction == "UP":
@@ -189,6 +257,7 @@ def plot_KM_four(bic_samples,
     bg = set(annot.index.values).difference(bic_samples)
 
     
+    yticks = [0, 0.25,0.5,0.75, 1.0]
     sns.reset_defaults()
     sns.set(font_scale= font_scale,
             style='ticks',
@@ -197,7 +266,7 @@ def plot_KM_four(bic_samples,
                 'ytick.color': '.25'})
 
     if not ax:
-        plt.figure(figsize=(figsize))
+        plt.figure(figsize=figsize)
         ax = plt.subplot(1,1,1)
 
     kmf_1 = KaplanMeierFitter()
@@ -215,7 +284,8 @@ def plot_KM_four(bic_samples,
     kmf_2.fit(annot.loc[s2,surv_time],
               annot.loc[s2,surv_event],
               label='standard, %s, n=%s'%(d1,len(s2))
-             ).plot_survival_function(ax=ax, color=c1,linestyle='dashed',
+             ).plot_survival_function(ax=ax, color=c1,
+                                      linestyle='dashed',
                                       xticks=xticks,
                                       yticks=yticks,
                                       ci_show=ci_show)
@@ -235,7 +305,9 @@ def plot_KM_four(bic_samples,
     kmf_4.fit(annot.loc[s4,surv_time],
               annot.loc[s4,surv_event],
               label='standard, %s, n=%s'%(d2,len(s4))
-             ).plot_survival_function(ax=ax, color=c2,linestyle='dashed',
+             ).plot_survival_function(ax=ax,
+                                      color=c2,
+                                      linestyle='dashed',
                                      xticks=xticks,
                                       yticks=yticks,
                                       ci_show=ci_show) 
