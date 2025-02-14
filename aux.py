@@ -10,6 +10,7 @@ from lifelines import KaplanMeierFitter, CoxPHFitter
 
 from statsmodels.stats.multitest import fdrcorrection
 
+sys.path.append("unpast/")
 from unpast.utils.method import cluster_samples, update_bicluster_data
 
 def zscore(df):
@@ -103,7 +104,7 @@ def plot_KM_predictive_subtypes(annot,
                         covariates = [],
                         t1= "bevacizumab", t0="standard",
                         xlabel = "", # surv+", months"
-                        xlim = "",
+                        xlim = False,
                         title = "",
                         time_col="time_column", event_col="event_column",
                         treatment_col= "bevacizumab",
@@ -170,21 +171,39 @@ def plot_KM_predictive_subtypes(annot,
     return pd.DataFrame.from_dict(stats).T
 
 
-def plot_KM_prognostic_subytpes(annot, 
-                        surv_event="event_column",surv_time="time_column",
-                        xlabel="survival, months", 
-                        title = "",
-                        covariates = [],
-                        subtypes = ["proliferative","mesenchymal","differentiated","immunoreactive"],
-                        color_dict = {},
+def plot_KM_prognostic_subytpes(annot,
+                                surv_event="event_column",
+                                surv_time="time_column",
+                                xlabel="survival, months", 
+                                xticks=[12*x for x in range(0,9)],
+                                title = "",
+                                text = "",
+                                covariates = [],
+                                subtypes = ["proliferative","mesenchymal","differentiated","immunoreactive"],
+                                color_dict = {},
                         cohort_name = "cohort",
-                        figsize=(5,3),plot_legend = True
+                        plot_legend = True,
+                        figsize=(5,4.5),
+                        max_time=0,
+                        label_x_pos=2,
+                        label_y_pos=0.05,
+                        add_counts = False,
+                        fig_file = ""
                        ):
     stats = {}
-    sns.reset_defaults()
-    plt.figure(figsize=figsize)
     
+    yticks = [0, 0.25,0.5,0.75, 1.0]
+    sns.reset_defaults()
+    sns.set(font_scale=0.85,
+            style='ticks',
+            rc={'axes.edgecolor': '.5',
+                'xtick.color': '.25',
+                'ytick.color': '.25'})
+    
+    fig = plt.figure(figsize=figsize)
+
     ax = plt.subplot(111)
+    kmfs = []
     for subt in subtypes:
 
         s1 = set(annot.loc[annot["subtype"]==subt,:].index.values)
@@ -210,14 +229,32 @@ def plot_KM_prognostic_subytpes(annot,
 
         kmf = KaplanMeierFitter()
         ax = kmf.fit(a.loc[s1,surv_time], a.loc[s1,surv_event],
-                     label=subt).plot_survival_function(ax=ax, color=color_dict["subtype"][subt])
+                     label=subt).plot_survival_function(ax=ax,
+                                                        ci_show=False,
+                                                        color=color_dict["subtype"][subt],
+                                                        xticks=xticks,
+                                                        yticks=yticks)
+        kmfs.append(kmf)
+        
     if title:
-        plt.title(title)
-    #add_at_risk_counts(kmf_1, kmf_2, ax=ax)
-    ax.set_xlabel(xlabel)
-    if not plot_legend:
-        ax.get_legend().remove()
-
+        ax.set_title(title,fontdict={'size':11})
+    tmp = ax.set_xlabel(xlabel)
+    if max_time>0:
+        tmp = ax.set_xlim(0,max_time)
+    tmp = ax.text(label_x_pos,label_y_pos, text,fontdict={'size':9})
+    tmp = ax.set_ylim(0,1)
+    
+    if add_counts:
+        add_at_risk_counts(kmfs[0], kmfs[1], kmfs[2], kmfs[3], 
+                           ax=ax, xticks=xticks, fig=fig,
+                           ypos=-0.2,fontdict={'size':8})
+        tmp = plt.tight_layout()
+        
+    
+    if fig_file:
+        plt.savefig(fig_file)
+    plt.show()
+    
     return pd.DataFrame.from_dict(stats).T
 
 
