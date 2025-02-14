@@ -10,6 +10,7 @@ from lifelines import KaplanMeierFitter, CoxPHFitter
 
 from statsmodels.stats.multitest import fdrcorrection
 
+sys.path.append("unpast/")
 from unpast.utils.method import cluster_samples, update_bicluster_data
 
 #### survival analysis for biclusters  #####

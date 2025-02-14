@@ -88,8 +88,9 @@ def run_RSF_and_calc_feature_importance(bics_train, annot_train,
     X_test = X_test.loc[:,shared_features]
 
     # Initialize 5-fold CV GridSearchCV
-    gs = GridSearchCV(RandomSurvivalForest(n_jobs=-1,random_state=42,min_samples_split=10, min_samples_leaf=10),
-                       param_grid,
+    np.random.seed(analysis_seed)
+    gs = GridSearchCV(RandomSurvivalForest(n_jobs=-1,random_state=analysis_seed,min_samples_split=10, min_samples_leaf=10),
+                      param_grid,
                       cv=5, 
                       verbose=True, 
                       n_jobs=-1,
@@ -100,7 +101,7 @@ def run_RSF_and_calc_feature_importance(bics_train, annot_train,
 
     # Best parameters and score
     print(f'Best parameters: {gs.best_params_}')
-    print(f'Best score: {gs.best_score_}')
+    #print(f'Best score: {gs.best_score_}') # mean CV score of the best_estimator 
     rsf = gs.best_estimator_
 
     print("RSF scores: Test: %.2f (train: %.2f)" % (rsf.score(X_test, y_test), rsf.score(X_train, y_train)))
