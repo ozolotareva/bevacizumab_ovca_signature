@@ -13,6 +13,18 @@ from statsmodels.stats.multitest import fdrcorrection
 sys.path.append("unpast/")
 from unpast.utils.method import cluster_samples, update_bicluster_data
 
+rc = {'axes.edgecolor': '.5',
+                'axes.linewidth': 0.5,
+                'xtick.major.width': 0.5,
+                'ytick.major.width': 0.5,
+                'xtick.minor.width': 0.4,
+                'ytick.minor.width': 0.4,
+                'xtick.major.size': 3,
+                'ytick.major.size': 3,
+                'xtick.color': '.25',
+                'ytick.color': '.25'}
+
+
 def zscore(df):
     m = df.mean(axis=1)
     df = df.T - m
@@ -110,21 +122,31 @@ def plot_KM_predictive_subtypes(annot,
                         treatment_col= "bevacizumab",
                         subt_col = "ConsensusOV_subt" ,subts= ["PRO","MES","DIF","IMR"],
                         label_pos=(40,0.6),
-                        add_text = True):
+                        add_text = True,
+                        rc = rc):
     sns.reset_defaults()
     plt.figure(figsize=(15,3))
     stats = {}
     i = 1
+    sns.reset_defaults()
+    sns.set(font_scale=0.85,style='ticks',rc=rc)
     for s in subts: #["proliferative","mesenchymal","differentiated","immunoreactive"]:
         a = annot.loc[annot[subt_col ].str.contains(s),[treatment_col,time_col,event_col]+covariates ]
         s1 = set(a.loc[a[treatment_col]==1,:].index.values)
         s2 = set(a.loc[a[treatment_col]==0,:].index.values)
 
         a = a.loc[sorted(s1|s2),:]
-
-        cph = CoxPHFitter()
-        res = cph.fit(a, duration_col=time_col, event_col= event_col, 
-                      show_progress=False, formula="age + FIGO_IIIC + FIGO_IV + OP_1 + OP_2 + "+treatment_col)
+        s1 = sorted(s1)
+        s2 = sorted(s2)
+        
+        try:
+            cph = CoxPHFitter()
+            res = cph.fit(a, duration_col=time_col, event_col= event_col, 
+                          show_progress=False, formula="age + FIGO_IIIC + FIGO_IV + OP_1 + OP_2 + "+treatment_col)
+        except: 
+            cph = CoxPHFitter(penalizer=0.1)
+            res = cph.fit(a, duration_col=time_col, event_col= event_col, 
+                          show_progress=False, formula="age + FIGO_IIIC + FIGO_IV + OP_1 + OP_2 + "+treatment_col)
 
         res_predictive = res.summary.loc[treatment_col,["exp(coef)","exp(coef) lower 95%","exp(coef) upper 95%","p"]]
         pval = res.summary.loc[treatment_col,"p"]
@@ -144,13 +166,21 @@ def plot_KM_predictive_subtypes(annot,
 
         kmf_1 = KaplanMeierFitter()
 
-        ax = kmf_1.fit(a.loc[s1,time_col], a.loc[s1,event_col], 
-                       label=t1).plot_survival_function(ax=ax, color="green") # label=t1+", n=%s"%len(s1)
+        ax = kmf_1.fit(a.loc[s1,time_col], 
+                       a.loc[s1,event_col], 
+                       label=t1).plot_survival_function(ax=ax, 
+                                                        color="green",
+                                                        zorder = 4,
+                                                        linewidth=0.8) # label=t1+", n=%s"%len(s1)
 
         kmf_2 = KaplanMeierFitter()
 
-        ax = kmf_2.fit(a.loc[s2,time_col], a.loc[s2,time_col],
-                       label=t0).plot_survival_function(ax=ax, color="grey") #, linestyle='dashed') # label=t0+", n=%s"%len(s2)
+        ax = kmf_2.fit(a.loc[s2,time_col], 
+                       a.loc[s2,time_col],
+                       label=t0).plot_survival_function(ax=ax,
+                                                        color="grey",
+                                                        zorder = 3,
+                                                        linewidth=1.2) #, linestyle='dashed') # label=t0+", n=%s"%len(s2)
 
         if i>1:
             ax.get_legend().remove()
@@ -164,9 +194,10 @@ def plot_KM_predictive_subtypes(annot,
         ax.set_ylim(0,1)
         if xlim:
             ax.set_xlim(xlim)
-        ax.set_title("%s(%s;n=%s)" %(s,title,a.shape[0]))
+        ax.set_title("%s (%s;n=%s)" %(s,title,a.shape[0]))
         #add_at_risk_counts(kmf_1, kmf_2, ax=ax) 
         #plt.tight_layout()
+        
         i += 1
     return pd.DataFrame.from_dict(stats).T
 
@@ -188,7 +219,8 @@ def plot_KM_prognostic_subytpes(annot,
                         label_x_pos=2,
                         label_y_pos=0.05,
                         add_counts = False,
-                        fig_file = ""
+                        fig_file = "",
+                        rc = rc
                        ):
     stats = {}
     
@@ -196,9 +228,7 @@ def plot_KM_prognostic_subytpes(annot,
     sns.reset_defaults()
     sns.set(font_scale=0.85,
             style='ticks',
-            rc={'axes.edgecolor': '.5',
-                'xtick.color': '.25',
-                'ytick.color': '.25'})
+            rc=rc)
     
     fig = plt.figure(figsize=figsize)
 
@@ -208,9 +238,9 @@ def plot_KM_prognostic_subytpes(annot,
 
         s1 = set(annot.loc[annot["subtype"]==subt,:].index.values)
         a = annot.loc[:,[surv_event,surv_time]+covariates].dropna()
-        s1 = s1.intersection(a.index.values)
+        s1 = sorted(s1.intersection(a.index.values))
         a[subt] = 0
-        a.loc[sorted(s1),subt]=1
+        a.loc[s1,subt]=1
 
         cph = CoxPHFitter()
         res = cph.fit(a, duration_col=surv_time, event_col= surv_event, 
@@ -233,7 +263,8 @@ def plot_KM_prognostic_subytpes(annot,
                                                         ci_show=False,
                                                         color=color_dict["subtype"][subt],
                                                         xticks=xticks,
-                                                        yticks=yticks)
+                                                        yticks=yticks,
+                                                         zorder = 3)
         kmfs.append(kmf)
         
     if title:
@@ -269,7 +300,8 @@ def fitCPH_and_plotKM_treatments(surv_data,
                       label_x_pos=2,
                       label_y_pos=0.05,
                       add_risk_counts = True,
-                      fig_file = ""
+                      fig_file = "",
+                      rc= rc
                       ):
     
     
@@ -294,9 +326,7 @@ def fitCPH_and_plotKM_treatments(surv_data,
     sns.reset_defaults()
     sns.set(font_scale=0.85,
             style='ticks',
-            rc={'axes.edgecolor': '.5',
-                'xtick.color': '.25',
-                'ytick.color': '.25'})
+            rc=rc)
     
     fig = plt.figure(figsize=figsize)
 
@@ -310,7 +340,9 @@ def fitCPH_and_plotKM_treatments(surv_data,
     kmf1.plot_survival_function(ax=ax,
                                 color="darkgreen",
                                 xticks=xticks,
-                                yticks=yticks)
+                                yticks=yticks,
+                                zorder = 4,
+                                linewidth=0.8)
     
     kmf2 = KaplanMeierFitter()
     d2 = d.loc[d["bevacizumab"]==0,:]
@@ -320,7 +352,9 @@ def fitCPH_and_plotKM_treatments(surv_data,
     kmf2.plot_survival_function(ax=ax,
                                 color="grey",
                                 xticks=xticks,
-                                yticks=yticks)
+                                yticks=yticks,
+                                zorder = 3,
+                                linewidth=1.2)
     ax.set_title(title,fontdict={'size':11})
     tmp = ax.set_xlabel(None)
     if max_time>0:

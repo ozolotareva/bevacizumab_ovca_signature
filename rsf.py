@@ -104,7 +104,7 @@ def run_RSF_and_calc_feature_importance(bics_train, annot_train,
     #print(f'Best score: {gs.best_score_}') # mean CV score of the best_estimator 
     rsf = gs.best_estimator_
 
-    print("RSF scores: Test: %.2f (train: %.2f)" % (rsf.score(X_test, y_test), rsf.score(X_train, y_train)))
+    print("RSF scores: Test: %.3f (train: %.3f)" % (rsf.score(X_test, y_test), rsf.score(X_train, y_train)))
 
     permut_result = permutation_importance(rsf, 
                                            X_test, 

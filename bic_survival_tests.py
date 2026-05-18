@@ -175,7 +175,7 @@ def test_samples_predictive(sample_data,
                            ):
     surv_data = sample_data.copy()
     cols = [treatment_col]+covariates+[time_col, event_col]
-    surv_data = surv_data.loc[samples,cols]
+    surv_data = surv_data.loc[sorted(samples),cols]
     surv_data,covar_kept = check_surv_data(surv_data,
                                            event =  event_col,
                                            time=time_col,
